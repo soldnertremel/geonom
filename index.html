@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ГеоНом — номенклатура</title>
+<style>
+:root{
+  --bg:#f4f1ea; --panel:#fffdf8; --ink:#1f2328; --muted:#6b6f76; --line:#e2ddd1;
+  --accent:#1c6e8c; --accent-soft:#e3f0f5; --ok:#2f9e44; --ok-soft:#e6f4ea; --bad:#d6336c; --bad-soft:#fbe9ef;
+  --target:#e8590c; --sea:#d7e9f2; --land:#f7f2e4; --coast:#9a8f78; --river:#5f9fd1;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-rows:auto auto 1fr;height:100dvh}
+.courses{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+.course{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;text-align:left;cursor:pointer;font-size:14px;line-height:1.3}
+.course.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.course small{display:block;font-size:11px;margin-top:4px;opacity:.75}
+.map-tools{position:absolute;left:12px;top:50px;display:flex;gap:5px;padding:5px 9px;border-radius:7px;background:rgba(255,253,248,.95);font-size:12px;align-items:center}
+.sources{font-size:11px;color:var(--muted);margin-top:20px}
+.sources a{color:inherit}
+@media(max-width:820px){.courses{grid-template-columns:repeat(2,minmax(0,1fr));padding:8px;gap:5px}.course{font-size:12px;padding:7px}.course small{display:none}.maphint{max-width:75%;font-size:10px}}
+header{display:flex;align-items:center;gap:20px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+.logo{font-weight:700;font-size:18px;letter-spacing:.2px}
+.logo span{color:var(--accent)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{border:0;background:none;padding:7px 12px;border-radius:8px;cursor:pointer;color:var(--muted)}
+nav button:hover{background:var(--accent-soft);color:var(--ink)}
+nav button.on{background:var(--accent);color:#fff}
+main{display:grid;grid-template-columns:400px 1fr;min-height:0}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:16px 18px 24px}
+.mapwrap{position:relative;min-height:0;overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;background:var(--sea)}
+.zoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px}
+.zoom button{width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:18px;line-height:1}
+.zoom button:hover{background:var(--accent-soft)}
+.basemap{position:absolute;left:12px;top:12px;display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel);font-size:13px}
+.basemap button{border:0;background:none;padding:6px 11px;cursor:pointer}
+.basemap button.on{background:var(--accent);color:#fff}
+.relief-credit{position:absolute;right:12px;bottom:31px;max-width:65%;font-size:10px;color:#415966;background:rgba(255,253,248,.92);padding:3px 6px;border-radius:5px}.relief-credit a{color:inherit}.relief-credit[hidden]{display:none}
+.maphint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);background:rgba(255,253,248,.85);padding:3px 8px;border-radius:6px}
+h2{font-size:17px;margin:0 0 10px}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:18px 0 8px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer;user-select:none;font-size:13.5px;background:#fff}
+.chip input{display:none}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:#0f4a5f}
+.chip small{color:var(--muted)}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+.seg label{flex:1;white-space:nowrap;text-align:center;padding:6px 4px;cursor:pointer;font-size:13.5px;border-right:1px solid var(--line)}
+.seg label:last-child{border-right:0}
+.seg input{display:none}
+.seg label.on{background:var(--accent);color:#fff}
+.btn{border:0;border-radius:9px;padding:9px 16px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select,textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;width:100%}
+.q{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:6px 0 12px}
+.q .lbl{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.q .txt{font-size:21px;font-weight:650;margin-top:2px}
+.q .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.opts{display:grid;gap:7px;margin:8px 0}
+.opt{text-align:left;border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer}
+.opt:hover{border-color:var(--accent)}
+.opt.ok{background:var(--ok-soft);border-color:var(--ok)}
+.opt.bad{background:var(--bad-soft);border-color:var(--bad)}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.fb{border-radius:10px;padding:10px 12px;margin:8px 0;font-size:14.5px}
+.fb.ok{background:var(--ok-soft);color:#1b5e2b}
+.fb.bad{background:var(--bad-soft);color:#8a1c45}
+.fb.info{background:var(--accent-soft);color:#0f4a5f}
+.bar{height:8px;background:#eee8da;border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .3s}
+.stat{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin:4px 0}
+.muted{color:var(--muted);font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12.5px;cursor:pointer;white-space:nowrap}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--accent-soft)}
+.tag{display:inline-block;padding:1px 7px;border-radius:99px;font-size:12px;font-weight:600}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.grade{font-size:44px;font-weight:750;line-height:1}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;background:#fff}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;word-break:break-all;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px}
+.wide aside{width:auto}
+.hide{display:none!important}
+.btn .kbd{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.45);color:#fff;margin-left:4px}
+.kbd{font-family:ui-monospace,Menlo,monospace;font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:#fff}
+@media (max-width:820px){
+  .app{height:auto;min-height:100dvh}
+  main{grid-template-columns:1fr;grid-template-rows:auto 65dvh}
+  aside{border-right:0;border-bottom:1px solid var(--line);max-height:45dvh}
+  header{flex-wrap:wrap;gap:8px;padding:8px 12px}
+}
+
+/* One settings section at a time; actions stay in view. */
+.settings-side{display:flex;flex-direction:column;gap:7px;overflow:hidden;padding:12px 14px;height:100%;min-height:0}
+.settings-side>h2{margin:0;font-size:17px}
+.settings-description{display:none}
+.settings-side #prog .stat{font-size:11px;margin:0 0 3px}.settings-side #prog .bar{height:4px}
+.settings-side #cfg{flex:1;min-height:0;display:flex;flex-direction:column}
+.settings-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:2px 0 9px;flex-shrink:0}
+.settings-tabs button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 5px;text-align:left;font-size:13px;font-weight:600;cursor:pointer}
+.settings-tabs button small{display:block;font-weight:400;color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.settings-tabs button[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.settings-tabs button:focus-visible,.settings-link:focus-visible,.chip:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.settings-page{min-height:0;overflow:auto}.settings-page[hidden]{display:none}
+.settings-page-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.settings-page h3{font-size:11px;margin:0 0 8px;letter-spacing:.25px}.settings-page-head h3{margin:0}
+.settings-page-head .row{gap:4px}.settings-page-head .btn{font-size:10px;padding:3px 7px}
+.settings-page .chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.settings-page .chip{border-radius:6px;padding:3px 5px;gap:5px;font-size:11.5px;line-height:1.2;min-height:25px}
+.settings-page .chip input{display:block;width:12px;height:12px;flex:0 0 12px;margin:0;accent-color:var(--accent)}
+.settings-page .chip small{margin-left:auto;font-size:10px}
+.settings-format .seg{flex-direction:column}.settings-format .seg input{display:inline-block;margin:0;accent-color:var(--accent)}.settings-format .seg label{display:flex;align-items:center;gap:8px;border-right:0;border-bottom:1px solid var(--line);padding:9px 7px}.settings-format .seg label:last-child{border-bottom:0}
+.settings-format h3:not(:first-child){margin-top:18px}
+.settings-page .muted{font-size:12px;line-height:1.4}
+.settings-footer{flex-shrink:0;display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--line)}
+.settings-footer>.btn{width:100%;padding:9px 12px}.settings-footer .row{justify-content:space-between;gap:5px}
+.settings-link{border:0;padding:2px 0;background:none;font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.settings-footer>.muted{font-size:11px}
+.settings-help{border:1px solid var(--line);border-radius:12px;padding:20px;max-width:min(640px,92vw);max-height:85dvh;overflow:auto;background:var(--panel);color:var(--ink)}
+.settings-help::backdrop{background:rgba(22,38,45,.4)}.settings-help h2{margin:0}.settings-help .sources{margin-top:12px;font-size:13px}.settings-help .sources>summary{display:none}
+@media(max-height:760px) and (min-width:821px){.settings-side{gap:5px;padding:10px 12px}.settings-description{display:none}.settings-tabs{margin-bottom:7px}.settings-page .chip{padding:3px 5px;min-height:24px;font-size:11.5px}.settings-page .chips{gap:3px}.settings-page-head{margin-bottom:6px}.settings-footer{padding-top:6px;gap:4px}}
+@media(max-width:820px){.app{height:100dvh;min-height:0}.app main{position:relative;grid-template-rows:auto minmax(0,1fr)}.app aside:not(.settings-side){max-height:45dvh}.settings-side{position:absolute;inset:0;z-index:4;height:100%;max-height:none;width:100%;border-bottom:0}.settings-side .chip{font-size:12px}.settings-page{overflow:auto}}
+
+.category-groups{display:flex;gap:6px;margin:8px 0 12px;flex-wrap:wrap}.category-groups [aria-pressed="true"]{background:#e7f5ef;color:#145c44;box-shadow:inset 0 0 0 1px #7eb49b}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="courses" id="courses" role="navigation" aria-label="Учебные разделы"></div>
+  <header>
+    <div class="logo">Гео<span>Ном</span></div>
+    <nav id="nav">
+      <button data-tab="train" class="on">Тренировка</button>
+      <button data-tab="repeat">Повтор ошибок</button>
+      <button data-tab="test">Пример контрольной</button>
+      
+    </nav>
+  </header>
+  <main id="main">
+    <aside id="side"></aside>
+    <div class="mapwrap">
+      <canvas id="map"></canvas>
+      <div class="zoom">
+        <button id="zin" title="Приблизить">+</button>
+        <button id="zout" title="Отдалить">−</button>
+        <button id="zhome" title="Показать весь набор">⌂</button>
+      </div>
+      <div class="basemap" id="basemap"><button data-b="relief">Физическая</button><button data-b="contour">Контурная</button></div>
+      <label class="map-tools"><input id="city-toggle" type="checkbox" checked>Города-ориентиры</label>
+      <div class="relief-credit" id="relief-credit" hidden><span id="relief-detail-status"></span> · <a href="https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer" target="_blank" rel="noopener">Esri, GEBCO, NOAA и др.</a></div>
+      <div class="maphint">Проекция Миллера · Колесо — масштаб, перетаскивание — сдвиг</div>
+    </div>
+  </main>
+</div>
+<script src="data.js"></script>
+<script src="relief.js"></script>
+<script>
+'use strict';
+/* ================= справочники ================= */
+const CATS = {oceans:'Океаны', seas:'Моря', gulfs:'Заливы', straits:'Проливы', islands:'Острова', peninsulas:'Полуострова',
+  capes:'Мысы', mountains:'Горы', peaks:'Вершины и вулканы', plains:'Равнины и плоскогорья', deserts:'Пустыни', rivers:'Реки', lakes:'Озёра', currents:'Течения', waterfalls:'Водопады и пороги', glaciers:'Ледники', reefs:'Рифы', naturalRegions:'Природные области', spits:'Косы', seafloorRidges:'Подводные хребты', seafloorBasins:'Котловины дна', seafloorTrenches:'Глубоководные желоба', seafloorFractures:'Разломы и рифты', seafloorCanyons:'Подводные каньоны', seafloorHighs:'Подводные плато и поднятия'};
+const REGS = {ev:'Евразия', af:'Африка', na:'Северная Америка', sa:'Южная Америка', au:'Австралия и Океания', an:'Антарктида',
+  pac:'Тихий океан', atl:'Атлантический', ind:'Индийский', arc:'Сев. Ледовитый', sou:'Южный океан'};
+const MODES = {find:'Найди на карте', name:'Назови объект', mix:'Вперемешку'};
+const OBJ = GEO.objects;
+const BYID = new Map(OBJ.map(o => [o.id, o]));
+
+/* ================= хранилище ================= */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('geonom.'+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('geonom.'+k, JSON.stringify(v)); }catch(e){} }
+};
+// Remove identifying records saved by the former assessment workflow.
+try{localStorage.removeItem('geonom.me');localStorage.removeItem('geonom.history');}catch(e){}
+const SUBJECTS = {world:'Физическая география материков и океанов', russia:'Физическая география России', orenburg:'Физическая география Оренбургской области', hydrology:'Гидрология'};
+let activeSubject = store.get('subject','world');
+if(!SUBJECTS[activeSubject]) activeSubject='world';
+const inSubject = (o, subject=activeSubject) => (o.subjects||['world']).includes(subject);
+let showCities=store.get('showCities',true);
+let stats = store.get('stats', {});   // id -> {box, seen, wrong, err, streak}
+const saveStats = () => store.set('stats', stats);
+
+/* ================= проекция Миллера ================= */
+// One fixed world projection for all questions, including both polar regions.
+function proj(lon, lat){
+  const l=lon*Math.PI/180, p=Math.max(-90,Math.min(90,lat))*Math.PI/180;
+  return [l,-1.25*Math.log(Math.tan(Math.PI/4+0.4*p))];
+}
+const MILLER_Y=1.25*Math.log(Math.tan(Math.PI/4+0.4*Math.PI/2));
+const projRing = ring => { const a = new Float64Array(ring.length*2); ring.forEach((p,i)=>{ const q = proj(p[0],p[1]); a[2*i]=q[0]; a[2*i+1]=q[1]; }); return a; };
+function bboxOf(arrs){
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const a of arrs) for(let i=0;i<a.length;i+=2){ if(a[i]<x0)x0=a[i]; if(a[i]>x1)x1=a[i]; if(a[i+1]<y0)y0=a[i+1]; if(a[i+1]>y1)y1=a[i+1]; }
+  return [x0,y0,x1,y1];
+}
+const LAND = GEO.land.map(pg => pg.map(projRing));
+const LAKES = GEO.lakes.map(pg => pg.map(projRing));
+// Reference hydrography is independent of quiz categories and course selection.
+const RIVER_NETWORK=(GEO.riverNetwork||[]).map(r=>({...r,L:r.c.map(projRing)}));
+for(const o of OBJ){
+  const g = o.g;
+  if(g.t==='pt'){ const p = proj(g.c[0], g.c[1]); o.P = p; o.bb = [p[0],p[1],p[0],p[1]]; }
+  else if(g.t==='ln'){ o.L = g.c.map(projRing); o.bb = bboxOf(o.L); }
+  else { o.G = g.c.map(pg => pg.map(projRing)); o.bb = bboxOf(o.G.flat()); }
+  o.lab = proj(o.l[0], o.l[1]);
+}
+const WORLD = [-Math.PI,-MILLER_Y,Math.PI,MILLER_Y];
+const CITIES=(GEO.cities||[]).map(c=>({...c,p:proj(c.c[0],c.c[1])})).sort((a,b)=>Number(b.capital)-Number(a.capital)||b.pop-a.pop);
+const SUBJECT_BOUNDS=Object.fromEntries(Object.entries(GEO.bounds||{}).map(([k,g])=>[k,bboxOf(g.c.flatMap(pg=>pg.map(projRing)))]));
+
+/* ================= карта ================= */
+const cv = document.getElementById('map'), ctx = cv.getContext('2d');
+const view = {k:100, tx:0, ty:0};
+let W=0, H=0, DPR=1;
+const layer = {hl:[], marks:[], labels:[], heat:null, onClick:null, dim:null};
+let homeBox = WORLD;
+
+function resize(){
+  const r = cv.getBoundingClientRect(); DPR = window.devicePixelRatio||1;
+  W = r.width; H = r.height; cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  draw();
+}
+function fit(bb, pad=0.08, maxK=Infinity){
+  const w = Math.max(bb[2]-bb[0], 1e-3), h = Math.max(bb[3]-bb[1], 1e-3);
+  const k = Math.min(W*(1-2*pad)/w, H*(1-2*pad)/h, maxK);
+  view.k = k; view.tx = W/2 - k*(bb[0]+bb[2])/2; view.ty = H/2 - k*(bb[1]+bb[3])/2;
+  draw();
+}
+function expand(bb, minSpan, f=1.8){
+  const cx=(bb[0]+bb[2])/2, cy=(bb[1]+bb[3])/2;
+  const w=Math.max((bb[2]-bb[0])*f, minSpan), h=Math.max((bb[3]-bb[1])*f, minSpan*0.6);
+  return [cx-w/2, cy-h/2, cx+w/2, cy+h/2];
+}
+const sx = x => x*view.k + view.tx, sy = y => y*view.k + view.ty;
+function pathPolys(polys){
+  for(const pg of polys) for(const r of pg){
+    ctx.moveTo(sx(r[0]), sy(r[1]));
+    for(let i=2;i<r.length;i+=2) ctx.lineTo(sx(r[i]), sy(r[i+1]));
+    ctx.closePath();
+  }
+}
+function pathLines(lines){
+  for(const r of lines){ ctx.moveTo(sx(r[0]), sy(r[1])); for(let i=2;i<r.length;i+=2) ctx.lineTo(sx(r[i]), sy(r[i+1])); }
+}
+function graticule(){
+  ctx.beginPath();
+  for(let lon=-180; lon<=180; lon+=30){ for(let lat=-90; lat<=90; lat+=3){ const p=proj(lon,lat); lat===-90?ctx.moveTo(sx(p[0]),sy(p[1])):ctx.lineTo(sx(p[0]),sy(p[1])); } }
+  for(let lat=-80; lat<=80; lat+=20){ for(let lon=-180; lon<=180; lon+=5){ const p=proj(lon,lat); lon===-180?ctx.moveTo(sx(p[0]),sy(p[1])):ctx.lineTo(sx(p[0]),sy(p[1])); } }
+  ctx.strokeStyle='rgba(28,110,140,.13)'; ctx.lineWidth=1; ctx.stroke();
+  // контур мира
+  ctx.beginPath();
+  for(let lat=-90; lat<=90; lat+=2){ const p=proj(-180,lat); lat===-90?ctx.moveTo(sx(p[0]),sy(p[1])):ctx.lineTo(sx(p[0]),sy(p[1])); }
+  for(let lat=90; lat>=-90; lat-=2){ const p=proj(180,lat); ctx.lineTo(sx(p[0]),sy(p[1])); }
+  ctx.closePath(); ctx.strokeStyle='rgba(28,110,140,.35)'; ctx.stroke();
+}
+function shapeOf(o, fill, stroke, lw){
+  if(o.G){ ctx.beginPath(); pathPolys(o.G); if(fill){ ctx.fillStyle=fill; ctx.fill('evenodd'); } if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); } }
+  else if(o.L){ ctx.beginPath(); pathLines(o.L); ctx.strokeStyle=stroke||fill; ctx.lineWidth=lw+2; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke(); }
+  else { const x=sx(o.P[0]), y=sy(o.P[1]); ctx.beginPath(); ctx.arc(x,y,7,0,7); ctx.fillStyle=fill||stroke; ctx.fill(); ctx.lineWidth=2.5; ctx.strokeStyle='#fff'; ctx.stroke(); }
+}
+function label(text, x, y, color){
+  ctx.font='600 13px -apple-system,Segoe UI,Roboto,Arial,sans-serif';
+  const w = ctx.measureText(text).width;
+  ctx.fillStyle='rgba(255,253,248,.92)'; ctx.strokeStyle=color; ctx.lineWidth=1.2;
+  const bx=x-w/2-6, by=y-28, bw=w+12, bh=21;
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx,by,bw,bh,6) : ctx.rect(bx,by,bw,bh); ctx.fill(); ctx.stroke();
+  ctx.fillStyle=color; ctx.fillText(text, bx+6, by+15);
+}
+function drawCities(){
+  if(!showCities) return;
+  const scale=view.k/(W/(WORLD[2]-WORLD[0]));
+  const occupied=[];
+  ctx.font='10px -apple-system,Segoe UI,Roboto,Arial,sans-serif';
+  for(const c of CITIES){
+    if(!c.capital && scale<3) continue;
+    if(!c.capital && scale<6 && c.pop<2000000) continue;
+    const x=sx(c.p[0]),y=sy(c.p[1]);
+    if(x<4||y<6||x>W-4||y>H-4) continue;
+    const w=ctx.measureText(c.n).width;
+    const b=[x+5,y-13,x+w+9,y+1];
+    if(b[2]>W-3||b[1]<1||occupied.some(a=>b[0]<a[2]&&b[2]>a[0]&&b[1]<a[3]&&b[3]>a[1])) continue;
+    // Reserve the area around highlighted study objects for question markings.
+    if(layer.hl.some(h=>{const p=h.o.lab;return Math.hypot(x-sx(p[0]),y-sy(p[1]))<28;})) continue;
+    occupied.push([b[0]-5,b[1]-4,b[2]+5,b[3]+4]);
+    ctx.beginPath();ctx.arc(x,y,c.capital?2.3:1.7,0,Math.PI*2);ctx.fillStyle='#243c4a';ctx.fill();ctx.strokeStyle='#fffdf8';ctx.lineWidth=1;ctx.stroke();
+    ctx.lineJoin='round';ctx.lineWidth=2.5;ctx.strokeStyle='rgba(255,253,248,.95)';ctx.strokeText(c.n,x+6,y-3);ctx.fillStyle='#243c4a';ctx.fillText(c.n,x+6,y-3);
+  }
+}
+function draw(){
+  if(!W) return;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--sea'); ctx.fillRect(0,0,W,H);
+  scheduleDetailedRelief();
+  const relief = basemap==='relief' && RIMG.naturalWidth;
+  if(relief){
+    const [x0,y0,x1,y1] = RELIEF.box;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(RIMG, sx(x0), sy(-y1), (x1-x0)*view.k, (y1-y0)*view.k);
+    drawDetailedRelief();
+    graticule();
+    ctx.beginPath(); pathPolys(LAND); ctx.strokeStyle='rgba(70,60,40,.45)'; ctx.lineWidth=.6; ctx.stroke();
+  } else {
+    graticule();
+    ctx.beginPath(); pathPolys(LAND); ctx.fillStyle='#f7f2e4'; ctx.fill('evenodd'); ctx.strokeStyle='#9a8f78'; ctx.lineWidth=.7; ctx.stroke();
+    ctx.beginPath(); pathPolys(LAKES); ctx.fillStyle='#d7e9f2'; ctx.fill('evenodd'); ctx.strokeStyle='#7fb0d6'; ctx.lineWidth=.6; ctx.stroke();
+  }
+  // реки (как на контурной карте)
+  ctx.strokeStyle = relief ? '#2f7fc1' : '#5f9fd1'; ctx.lineCap='round';ctx.lineJoin='round';
+  for(const major of [false,true]){
+    ctx.beginPath();
+    for(const r of RIVER_NETWORK)if(view.k>=r.minScale && (r.order>=5)===major)pathLines(r.L);
+    ctx.lineWidth=major?(relief?1.15:1):.75;ctx.stroke();
+  }
+  drawCities();
+  if(layer.heat){
+    for(const [o, v] of layer.heat){ const c = `rgba(214,51,108,${0.15+0.7*v})`; shapeOf(o, o.L?null:c, o.L?c:null, o.L?2:0); }
+  }
+  for(const h of layer.hl) shapeOf(h.o, h.fill, h.stroke, h.lw||2);
+  for(const m of layer.marks){
+    const x=sx(m.p[0]), y=sy(m.p[1]);
+    ctx.beginPath(); ctx.arc(x,y,6,0,7); ctx.fillStyle=m.color; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-11,y); ctx.lineTo(x-7,y); ctx.moveTo(x+7,y); ctx.lineTo(x+11,y); ctx.moveTo(x,y-11); ctx.lineTo(x,y-7); ctx.moveTo(x,y+7); ctx.lineTo(x,y+11); ctx.strokeStyle=m.color; ctx.stroke();
+  }
+  for(const l of layer.labels) label(l.text, sx(l.p[0]), sy(l.p[1]), l.color);
+}
+// Fetch a new, unlabelled terrain image for the visible area instead of
+// stretching the global 6000px illustration. Export in the exact Miller CRS.
+const DETAIL_RADIUS=6371000;
+const DETAIL_WKT='PROJCS["Trainer_Miller",GEOGCS["GCS_Sphere",DATUM["D_Sphere",SPHEROID["Sphere",6371000,0]],PRIMEM["Greenwich",0],UNIT["Degree",0.0174532925199433]],PROJECTION["Miller_Cylindrical"],PARAMETER["False_Easting",0],PARAMETER["False_Northing",0],PARAMETER["Central_Meridian",11],UNIT["Meter",1]]';
+const detailRelief={frame:null,fine:null,timer:null,key:null,loading:false,failed:false,retryAt:0};
+function detailRequest(){
+  if(!W||!H||basemap!=='relief'||view.k<W/(2*Math.PI)*1.4)return null;
+  // A modest margin makes ordinary panning possible without another request.
+  const cap=-proj(0,85.05112878)[1];
+  const bb=[Math.max(-Math.PI,(-view.tx-W*.15)/view.k),Math.max(-cap,(-view.ty-H*.15)/view.k),Math.min(Math.PI,(W*1.15-view.tx)/view.k),Math.min(cap,(H*1.15-view.ty)/view.k)];
+  if(bb[2]<=bb[0]||bb[3]<=bb[1])return null;
+  const f=Math.min(Math.max(DPR,2),3,4096/(Math.max(W,H)*1.3));
+  const width=Math.max(1,Math.round((bb[2]-bb[0])*view.k*f)),height=Math.max(1,Math.round((bb[3]-bb[1])*view.k*f));
+  const key=[...bb.map(n=>n.toFixed(7)),width,height].join('|');
+  const params=new URLSearchParams({f:'image',format:'png32',transparent:'false',dpi:'96',size:width+','+height,
+    bbox:[bb[0],-bb[3],bb[2],-bb[1]].map(n=>(n*DETAIL_RADIUS).toFixed(3)).join(','),
+    bboxSR:JSON.stringify({wkt:DETAIL_WKT}),imageSR:JSON.stringify({wkt:DETAIL_WKT})});
+  return {bb,key,density:width/(bb[2]-bb[0]),url:'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/export?'+params,fineURL:'https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/export?'+params};
+}
+function detailStatus(text){
+  document.getElementById('relief-detail-status').textContent=text;
+}
+function scheduleDetailedRelief(){
+  const req=detailRequest(),credit=document.getElementById('relief-credit');credit.hidden=!req;
+  if(!req){clearTimeout(detailRelief.timer);detailRelief.key=null;return;}
+  const old=detailRelief.frame,fine=detailRelief.fine;
+  const visible=[-view.tx/view.k,-view.ty/view.k,(W-view.tx)/view.k,(H-view.ty)/view.k];
+  if(old&&fine&&fine.key===old.key&&old.density>=req.density*.98&&old.bb[0]<=visible[0]&&old.bb[1]<=visible[1]&&old.bb[2]>=visible[2]&&old.bb[3]>=visible[3]){
+    if(detailRelief.loading){clearTimeout(detailRelief.timer);detailRelief.key=null;detailRelief.loading=false;}
+    detailStatus('Подробный рельеф');return;
+  }
+  if(req.key===detailRelief.key&&(!detailRelief.failed||Date.now()<detailRelief.retryAt))return;
+  clearTimeout(detailRelief.timer);detailRelief.key=req.key;detailRelief.loading=true;detailRelief.failed=false;
+  detailStatus('Загрузка подробного рельефа…');
+  detailRelief.timer=setTimeout(()=>{
+    const img=new Image();
+    img.onload=()=>{
+      if(req.key!==detailRelief.key)return;
+      detailRelief.frame={...req,img};draw();
+    };
+    img.onerror=()=>{
+      if(req.key!==detailRelief.key)return;
+      detailRelief.failed=true;detailRelief.retryAt=Date.now()+10000;detailStatus('Подробный слой недоступен · показана общая основа');
+    };
+    img.src=req.url;
+    const fine=new Image();
+    fine.onload=()=>{if(req.key!==detailRelief.key)return;detailRelief.fine={...req,img:fine};detailRelief.loading=false;detailStatus('Подробный рельеф');draw();};
+    fine.onerror=()=>{if(req.key!==detailRelief.key)return;detailRelief.loading=false;detailRelief.failed=true;detailRelief.retryAt=Date.now()+10000;detailStatus('Общая основа · подробный рельеф недоступен');};fine.src=req.fineURL;
+  },350);
+}
+function drawDetailedRelief(){
+  if(!detailRequest())return;
+  const frame=detailRelief.frame,fine=detailRelief.fine;
+  if(frame){
+    const [x0,y0,x1,y1]=frame.bb;
+    // Ocean bathymetry is drawn only over water. Preserve the familiar
+    // elevation colours on land; the high-resolution hillshade adds detail.
+    ctx.save();ctx.beginPath();ctx.rect(sx(-Math.PI),sy(-MILLER_Y),2*Math.PI*view.k,2*MILLER_Y*view.k);
+    pathPolys(LAND);ctx.clip('evenodd');
+    ctx.drawImage(frame.img,sx(x0),sy(y0),(x1-x0)*view.k,(y1-y0)*view.k);ctx.restore();
+  }
+  if(fine){
+    const [x0,y0,x1,y1]=fine.bb;
+    ctx.save();ctx.beginPath();pathPolys(LAND);ctx.clip('evenodd');
+    // Replace coarse global shading rather than multiply two terrain textures.
+    // The global raster supplies hue only; all visible slopes come from the
+    // viewport hillshade, requested at least at double screen resolution.
+    ctx.filter='brightness(.5) contrast(3) brightness(1.72)';
+    ctx.drawImage(fine.img,sx(x0),sy(y0),(x1-x0)*view.k,(y1-y0)*view.k);
+    ctx.filter='none';ctx.globalCompositeOperation='color';
+    const [rx0,ry0,rx1,ry1]=RELIEF.box;
+    ctx.beginPath();ctx.rect(sx(x0),sy(y0),(x1-x0)*view.k,(y1-y0)*view.k);ctx.clip();
+    ctx.drawImage(RIMG,sx(rx0),sy(-ry1),(rx1-rx0)*view.k,(ry1-ry0)*view.k);
+    ctx.restore();
+  }
+}
+const RIMG = new Image();
+let basemap = store.get('basemap', 'relief');
+if(window.RELIEF){ RIMG.onload = () => draw(); RIMG.src = RELIEF.src; } else basemap = 'contour';
+function setBasemap(b){
+  basemap = b; store.set('basemap', b);
+  document.querySelectorAll('#basemap button').forEach(x => x.classList.toggle('on', x.dataset.b===b));
+  draw();
+}
+document.getElementById('city-toggle').checked=showCities;
+document.getElementById('city-toggle').onchange=e=>{showCities=e.target.checked;store.set('showCities',showCities);draw();};
+document.getElementById('basemap').onclick = e => { const b = e.target.closest('button'); if(b) setBasemap(b.dataset.b); };
+function clearLayer(){ document.getElementById('side').classList.remove('settings-side'); layer.onClick=null; layer.hl=[]; layer.marks=[]; layer.labels=[]; layer.heat=null; }
+
+/* ---- взаимодействие ---- */
+const ptrs = new Map(); let drag=null, pinch=null;
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, {x:e.offsetX, y:e.offsetY});
+  if(ptrs.size===1) drag = {x:e.offsetX, y:e.offsetY, tx:view.tx, ty:view.ty, moved:false};
+  if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y), k:view.k, tx:view.tx, ty:view.ty, cx:(a.x+b.x)/2, cy:(a.y+b.y)/2}; drag=null; }
+});
+cv.addEventListener('pointermove', e => {
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, {x:e.offsetX, y:e.offsetY});
+  if(pinch && ptrs.size===2){
+    const [a,b]=[...ptrs.values()]; const f = Math.hypot(a.x-b.x,a.y-b.y)/pinch.d;
+    view.k = pinch.k*f; view.tx = pinch.cx - (pinch.cx-pinch.tx)*f; view.ty = pinch.cy - (pinch.cy-pinch.ty)*f; draw(); return;
+  }
+  if(drag){
+    const dx=e.offsetX-drag.x, dy=e.offsetY-drag.y;
+    if(Math.hypot(dx,dy)>5) drag.moved=true;
+    if(drag.moved){ view.tx=drag.tx+dx; view.ty=drag.ty+dy; cv.style.cursor='grabbing'; draw(); }
+  }
+});
+function up(e){
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId); cv.style.cursor='crosshair';
+  if(pinch){ if(ptrs.size<2) pinch=null; drag=null; return; }
+  if(drag && !drag.moved && layer.onClick){ layer.onClick((e.offsetX-view.tx)/view.k, (e.offsetY-view.ty)/view.k); }
+  drag=null;
+}
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY*0.0015)); }, {passive:false});
+function zoomAt(x, y, f){
+  const k = Math.min(Math.max(view.k*f, 40), 40000); f = k/view.k;
+  view.tx = x-(x-view.tx)*f; view.ty = y-(y-view.ty)*f; view.k = k; draw();
+}
+document.getElementById('zin').onclick = () => zoomAt(W/2,H/2,1.6);
+document.getElementById('zout').onclick = () => zoomAt(W/2,H/2,1/1.6);
+document.getElementById('zhome').onclick = () => fit(homeBox);
+new ResizeObserver(resize).observe(cv);
+
+/* ---- попадание в объект ---- */
+function inRing(r, x, y){
+  let c=false;
+  for(let i=0, j=r.length-2; i<r.length; j=i, i+=2){
+    const xi=r[i], yi=r[i+1], xj=r[j], yj=r[j+1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c;
+  }
+  return c;
+}
+function segDist(r, x, y, closed){
+  let best=Infinity; const n=r.length;
+  for(let i=0;i<n-2+(closed?2:0);i+=2){
+    const ax=r[i], ay=r[i+1], bx=r[(i+2)%n], by=r[(i+3)%n];
+    const dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy;
+    let t = L ? ((x-ax)*dx+(y-ay)*dy)/L : 0; t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(x-ax-t*dx, y-ay-t*dy); if(d<best) best=d;
+  }
+  return best;
+}
+// расстояние от точки до объекта в пикселях экрана (0 — внутри)
+function distPx(o, x, y){
+  if(o.P) return Math.hypot(x-o.P[0], y-o.P[1])*view.k;
+  if(o.L){ let d=Infinity; for(const r of o.L) d=Math.min(d, segDist(r,x,y,false)); return d*view.k; }
+  let d=Infinity;
+  for(const pg of o.G){
+    if(inRing(pg[0],x,y) && !pg.slice(1).some(h=>inRing(h,x,y))) return 0;
+    for(const r of pg) d=Math.min(d, segDist(r,x,y,true));
+  }
+  return d*view.k;
+}
+const TOL = {pt:16, ln:10, pg:8};
+const hit = (o, x, y) => distPx(o, x, y) <= TOL[o.g.t];
+function whatIsHere(pool, x, y){
+  let best=null, bestA=Infinity;
+  for(const o of pool){ if(!hit(o,x,y)) continue; const a=(o.bb[2]-o.bb[0])*(o.bb[3]-o.bb[1]) + (o.P?-1:0); if(a<bestA){bestA=a; best=o;} }
+  return best;
+}
+
+/* ================= проверка ответа ================= */
+const STOP = /(^|\s)(море|моря|озеро|оз|река|р|пролив|прол|залив|зал|полуостров|п-ов|пов|остров|острова|о-в|о-ва|о|горы|хребет|хр|мыс|м|пустыня|нагорье|плато|плоскогорье|равнина|низменность|возвышенность|вулкан|гора|океан|архипелаг|впадина|течение|водопад|водопады|ледник|шельфовый|риф|коса)(?=\s|$)/g;
+function norm(s){
+  return (' '+s.toLowerCase().replace(/ё/g,'е').replace(/[()«»".,]/g,' ').replace(/[-–—]/g,' ')+' ')
+    .replace(STOP,' ').replace(/\s+/g,' ').trim();
+}
+function lev(a,b){
+  const m=a.length, n=b.length; let prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1)); prev=cur; }
+  return prev[n];
+}
+function checkTyped(o, ans){
+  const a = norm(ans); if(!a) return 'no';
+  const names = [o.n, ...o.a, o.n.replace(/\s*\(.*\)/,'')].map(norm);
+  if(names.includes(a)) return 'ok';
+  if(names.some(n => n.length>=6 && lev(n,a)<=1)) return 'typo';
+  return 'no';
+}
+
+/* ================= выбор вопросов ================= */
+function poolFor(cfg){
+  return OBJ.filter(o => inSubject(o,cfg.subject||activeSubject) && cfg.cats.includes(o.k) && (!cfg.regs.length || cfg.regs.includes(o.r)));
+}
+const st = id => stats[id] || (stats[id] = {box:0, seen:0, wrong:0, err:false, streak:0});
+const WEIGHT = [8,5,3,1.5,0.6];
+let recent = [];
+function pickTraining(pool){
+  const cand = pool.filter(o => !recent.includes(o.id));
+  const list = cand.length ? cand : pool;
+  const w = list.map(o => { const s=stats[o.id]; return !s ? 6 : WEIGHT[Math.min(s.box,4)]; });
+  let r = Math.random()*w.reduce((a,b)=>a+b,0);
+  for(let i=0;i<list.length;i++){ r-=w[i]; if(r<=0) return list[i]; }
+  return list[list.length-1];
+}
+function record(o, ok){
+  const s = st(o.id); s.seen++;
+  if(ok){ s.box=Math.min(s.box+1,4); s.streak++; if(s.err && s.streak>=2) s.err=false; }
+  else { s.box=0; s.wrong++; s.err=true; s.streak=0; }
+  saveStats();
+}
+function distractors(o, n, rnd=Math.random, subject=activeSubject){
+  const same = OBJ.filter(x => inSubject(x,subject) && x.k===o.k && x.id!==o.id);
+  const near = same.filter(x => x.r===o.r);
+  const pickFrom = (arr, k) => shuffle(arr.slice(), rnd).slice(0,k);
+  let res = pickFrom(near, n);
+  if(res.length<n) res = res.concat(pickFrom(same.filter(x=>!res.includes(x)), n-res.length));
+  return res;
+}
+function shuffle(a, rnd=Math.random){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+/* ================= общие элементы панели ================= */
+const side = document.getElementById('side');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function chipsHTML(name, dict, sel, counts){
+  return `<div class="chips">${Object.entries(dict).map(([k,v]) =>
+    `<label class="chip ${sel.includes(k)?'on':''}"><input type="checkbox" name="${name}" value="${k}" ${sel.includes(k)?'checked':''}>${v}${counts?` <small>${counts[k]||0}</small>`:''}</label>`).join('')}</div>`;
+}
+function segHTML(name, dict, val){
+  return `<div class="seg">${Object.entries(dict).map(([k,v]) =>
+    `<label class="${k===val?'on':''}"><input type="radio" name="${name}" value="${k}" ${k===val?'checked':''}>${v}</label>`).join('')}</div>`;
+}
+function bindChips(root, onChange){
+  bindSettings(root);
+  root.querySelectorAll('.chip input, .seg input').forEach(inp => inp.addEventListener('change', () => {
+    if(inp.type==='radio') root.querySelectorAll(`input[name="${inp.name}"]`).forEach(x => x.parentElement.classList.toggle('on', x.checked));
+    else inp.parentElement.classList.toggle('on', inp.checked);
+    syncSettingsSummary(root);
+    onChange && onChange();
+  }));
+}
+const vals = (root, name) => [...root.querySelectorAll(`input[name="${name}"]:checked`)].map(x=>x.value);
+const val = (root, name) => (root.querySelector(`input[name="${name}"]:checked`)||{}).value;
+function countBy(field, filter){ const c={}; for(const o of OBJ) if(inSubject(o)&&(!filter||filter(o))) c[o[field]]=(c[o[field]]||0)+1; return c; }
+
+function cfgPanel(cfg, opts={}){
+  cfg.subject=activeSubject;
+  const available=Object.fromEntries(Object.entries(CATS).filter(([k])=>OBJ.some(o=>inSubject(o)&&o.k===k)));
+  const regions=Object.fromEntries(Object.entries(REGS).filter(([k])=>OBJ.some(o=>inSubject(o)&&o.r===k)));
+  const selected=store.get('settingsPanel','cats');
+  const active=['cats','regs','format'].includes(selected)?selected:'cats';
+  return `<div class="settings-tabs" role="tablist" aria-label="Разделы настроек">
+    ${[['cats','Объекты'],['regs','Регионы'],['format','Задания']].map(([k,n])=>`<button type="button" id="settings-tab-${k}" role="tab" data-settings-tab="${k}" aria-controls="settings-${k}" aria-selected="${k===active}" tabindex="${k===active?0:-1}">${n}<small data-settings-summary="${k}"></small></button>`).join('')}
+    </div>
+    <section class="settings-page" role="tabpanel" id="settings-cats" aria-labelledby="settings-tab-cats" ${active==='cats'?'':'hidden'}>
+      <div class="settings-page-head"><h3>Что учим</h3><div class="row"><button class="btn ghost small" data-all="cats">Все</button><button class="btn ghost small" data-none="cats">Снять все</button></div></div>
+      <div class="category-groups" role="group" aria-label="Группы объектов">${[['land','Суша'],['water','Воды'],['bottom','Дно океана']].map(([k,n],i)=>`<button type="button" class="btn ghost small" data-category-group="${k}" aria-pressed="${i===0}">${n}</button>`).join('')}</div>
+      ${['land','water','bottom'].map((group,i)=>`<div data-category-page="${group}" ${i?'hidden':''}>${chipsHTML('cats',Object.fromEntries(Object.entries(available).filter(([k])=>(k.startsWith('seafloor')?'bottom':['oceans','seas','gulfs','straits','rivers','lakes','currents','waterfalls','glaciers','reefs'].includes(k)?'water':'land')===group)),cfg.cats,countBy('k'))}</div>`).join('')}
+    </section>
+    <section class="settings-page" role="tabpanel" id="settings-regs" aria-labelledby="settings-tab-regs" ${active==='regs'?'':'hidden'}>
+      <div class="settings-page-head"><h3>Материки и океаны</h3><button class="btn ghost small" data-none="regs">Весь мир</button></div>
+      ${chipsHTML('regs',regions,cfg.regs)}
+      <p class="muted">Можно выбрать несколько регионов. Пустой выбор — весь мир.</p>
+    </section>
+    <section class="settings-page settings-format" role="tabpanel" id="settings-format" aria-labelledby="settings-tab-format" ${active==='format'?'':'hidden'}>
+      <h3>Режим задания</h3>${segHTML('mode',MODES,cfg.mode)}
+      <h3>Как отвечать на вопрос «Назови»</h3>${segHTML('answer',{choice:'Варианты ответа',type:'Ввод названия'},cfg.answer)}
+      ${opts.count?`<h3>Количество вопросов</h3><div class="field"><input type="number" aria-label="Количество вопросов" name="count" min="5" max="100" value="${cfg.count||10}"></div>`:''}
+      <p class="muted">«Найди» — отметьте объект на карте. «Назови» — определите выделенный объект. «Вперемешку» — оба типа вопросов.</p>
+    </section>`;
+}
+function syncSettingsSummary(root){
+  const texts={cats:vals(root,'cats').length+' выбрано',regs:vals(root,'regs').length?vals(root,'regs').length+' выбрано':'Весь мир',format:MODES[val(root,'mode')]||'Выберите режим'};
+  for(const [k,t] of Object.entries(texts)){const el=root.querySelector('[data-settings-summary="'+k+'"]');if(el)el.textContent=t;}
+}
+function bindSettings(root){
+  if(root.dataset.settingsBound)return;root.dataset.settingsBound='1';
+  const tabs=[...root.querySelectorAll('[data-settings-tab]')];
+  const groups=[...root.querySelectorAll('[data-category-group]')];
+  const availableGroups=groups.filter(b=>root.querySelector('[data-category-page="'+b.dataset.categoryGroup+'"] input'));
+  function openGroup(b){groups.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));root.querySelectorAll('[data-category-page]').forEach(x=>x.hidden=x.dataset.categoryPage!==b.dataset.categoryGroup);}
+  groups.forEach(b=>{b.hidden=!availableGroups.includes(b);b.onclick=()=>openGroup(b);});
+  if(availableGroups.length)openGroup(availableGroups[0]);
+  function open(tab){
+    const key=tab.dataset.settingsTab;store.set('settingsPanel',key);
+    tabs.forEach(b=>{b.setAttribute('aria-selected',String(b===tab));b.tabIndex=b===tab?0:-1;});
+    root.querySelectorAll('.settings-page').forEach(p=>p.hidden=p.id!=='settings-'+key);
+  }
+  tabs.forEach((b,i)=>{
+    b.onclick=()=>open(b);
+    b.onkeydown=e=>{
+      let n=e.key==='ArrowRight'?(i+1)%tabs.length:e.key==='ArrowLeft'?(i+tabs.length-1)%tabs.length:e.key==='Home'?0:e.key==='End'?tabs.length-1:null;
+      if(n!==null){e.preventDefault();open(tabs[n]);tabs[n].focus();}
+    };
+  });
+  syncSettingsSummary(root);
+}
+function openSources(){
+  const dialog=document.createElement('dialog');dialog.className='settings-help';
+  dialog.innerHTML='<div class="settings-page-head"><h2>Источники и справка</h2><button class="btn ghost small" autofocus>Закрыть</button></div>'+catalogNotes().replace('<details class="sources">','<details class="sources" open>');
+  document.body.appendChild(dialog);dialog.querySelector('button').onclick=()=>dialog.close();
+  dialog.addEventListener('close',()=>dialog.remove());dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});dialog.showModal();
+}
+function readCfg(root, cfg){
+  cfg.subject=activeSubject; cfg.cats = vals(root,'cats'); cfg.regs = vals(root,'regs'); cfg.mode = val(root,'mode'); cfg.answer = val(root,'answer');
+  const c = root.querySelector('input[name="count"]'); if(c) cfg.count = Math.max(5, Math.min(100, +c.value||20));
+  return cfg;
+}
+function bindAllNone(root, onChange){
+  root.querySelectorAll('[data-all],[data-none]').forEach(b => b.onclick = () => {
+    const name = b.dataset.all || b.dataset.none, on = !!b.dataset.all;
+    root.querySelectorAll(`input[name="${name}"]`).forEach(x => { x.checked = on; x.parentElement.classList.toggle('on', on); });
+    syncSettingsSummary(root);
+    onChange && onChange();
+  });
+}
+function viewFor(pool){ const subject=activeSubject; homeBox = SUBJECT_BOUNDS[subject] || (pool.length ? bboxOf(pool.map(o => new Float64Array(o.bb))) : WORLD); fit(homeBox); }
+function showObject(o, color='#e8590c', zoom=true, also=null, revealName=true){
+  layer.hl.push({o, fill: o.G ? hexA(color,.32) : (o.P ? color : null), stroke: color, lw: o.L ? 3 : 2});
+  if(revealName) layer.labels.push({text:o.n, p:o.lab, color});
+  let bb = o.bb;
+  if(also) bb = [Math.min(bb[0],also[0]), Math.min(bb[1],also[1]), Math.max(bb[2],also[0]), Math.max(bb[3],also[1])];
+  if(zoom) fit(expand(bb, o.bufferKm ? 0.06 : 0.9), 0.1);
+  else draw();
+}
+const hexA = (hex, a) => { const n=parseInt(hex.slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; };
+
+/* ================= тренировка и повтор ================= */
+const DEFAULT = {cats:['oceans','seas','islands','peninsulas','mountains','rivers','lakes'], regs:[], mode:'mix', answer:'choice'};
+let trainCfg = Object.assign({}, DEFAULT, store.get('trainCfg.'+activeSubject, activeSubject==='world'?store.get('trainCfg',{}):{}));
+let session = null;
+
+function renderTrain(repeat){
+  clearLayer(); layer.onClick=null; session=null;
+  const cfg = trainCfg; cfg.subject=activeSubject;
+  side.innerHTML = `
+    <h2>${repeat ? 'Повтор ошибок' : 'Тренировка'}</h2>
+    <div class="settings-description">${repeat ? 'Повторяем объекты, в которых были ошибки.' : 'Выберите набор и формат заданий.'}</div>
+    <div id="prog"></div>
+    <div id="cfg">${cfgPanel(cfg)}</div>
+    <div class="settings-footer"><button class="btn" id="go">Начать тренировку</button>
+      <div class="row"><button class="settings-link" id="reset">Сбросить прогресс</button><button class="settings-link" id="sources">Источники и справка</button></div></div>`;
+  side.classList.add('settings-side');side.querySelector('#sources').onclick=openSources;
+  const root = side.querySelector('#cfg');
+  const upd = () => { readCfg(root, cfg); store.set('trainCfg.'+activeSubject, cfg); progress(repeat); viewFor(currentPool(repeat)); };
+  bindChips(root, upd); bindAllNone(root, upd); progress(repeat); viewFor(currentPool(repeat));
+  side.querySelector('#go').onclick = () => { readCfg(root, cfg); store.set('trainCfg.'+activeSubject, cfg); startTrain(repeat); };
+  side.querySelector('#reset').onclick = () => { if(confirm('Удалить статистику ответов на этом компьютере?')){ stats={}; saveStats(); progress(repeat); } };
+}
+function currentPool(repeat){ const p = poolFor(trainCfg); return repeat ? p.filter(o => stats[o.id] && stats[o.id].err) : p; }
+function progress(repeat){
+  const el = side.querySelector('#prog'); if(!el) return;
+  const pool = poolFor(trainCfg); const n = pool.length;
+  const learned = pool.filter(o => stats[o.id] && stats[o.id].box>=3).length;
+  const errs = pool.filter(o => stats[o.id] && stats[o.id].err).length;
+  el.innerHTML=`<div class="stat"><span>Усвоено <b>${learned}/${n}</b></span><span>Повторить <b>${errs}</b></span></div><div class="bar"><i style="width:${n?100*learned/n:0}%"></i></div>`;
+}
+function startTrain(repeat){
+  const pool = currentPool(repeat);
+  if(!pool.length){ alert(repeat ? 'Ошибок для повторения нет — отлично!' : 'Выберите хотя бы одну категорию.'); return; }
+  session = {repeat, subject:activeSubject, pool, n:0, ok:0, cur:null};
+  viewFor(pool); recent=[]; nextTrain();
+}
+function nextTrain(){
+  const s = session; clearLayer();
+  if(s.repeat){ s.pool = s.pool.filter(o => stats[o.id] && stats[o.id].err); if(!s.pool.length){ finishTrain(true); return; } }
+  const o = pickTraining(s.pool); recent.push(o.id); if(recent.length>Math.min(4, s.pool.length-1)) recent.shift();
+  const mode = trainCfg.mode==='mix' ? (Math.random()<.5?'find':'name') : trainCfg.mode;
+  s.cur = {o, mode, done:false};
+  askQuestion(s.cur, {training:true, onAnswer: ok => { record(o, ok); s.n++; if(ok) s.ok++; }});
+}
+function finishTrain(cleared){
+  clearLayer(); draw();
+  side.innerHTML = `<h2>${cleared?'Все ошибки исправлены':'Готово'}</h2>
+    <div class="fb ok">Верных ответов: ${session.ok} из ${session.n}</div>
+    <button class="btn" id="back">К настройкам</button>`;
+  side.querySelector('#back').onclick = () => renderTrain(session.repeat);
+}
+function trainHeader(){
+  const s = session;
+  return `<div class="row" style="justify-content:space-between"><h2 style="margin:0">${s.repeat?'Повтор ошибок':'Тренировка'}</h2>
+    <button class="btn ghost small" id="stop">Завершить</button></div>
+    <div class="stat"><span>Ответов: ${s.n}</span><span>Верно: ${s.ok}${s.n?` (${Math.round(100*s.ok/s.n)}%)`:''}</span></div>`;
+}
+
+/* ---- один вопрос (тренировка) ---- */
+function askQuestion(q, {onAnswer}){
+  const o = q.o;
+  if(q.mode==='find'){
+    side.innerHTML = trainHeader() + `
+      <div class="q"><div class="lbl">Покажите на карте · ${CATS[o.k].toLowerCase()}</div><div class="txt">${esc(o.n)}</div>${o.source?.partial?'<div class="sub">Учебный участок реки</div>':''}</div>
+      <div id="fb"></div>
+      <div class="row"><button class="btn ghost" id="giveup">Не знаю — показать</button><button class="btn hide" id="next">Дальше <span class="kbd">Enter</span></button></div>`;
+    fit(homeBox);
+    layer.onClick = (x, y) => {
+      if(q.done) return;
+      q.click = [x, y];
+      const ok = hit(o, x, y);
+      layer.marks.push({p:[x,y], color: ok?'#2f9e44':'#d6336c'});
+      if(ok){ finishQ(true, `Верно!`); }
+      else {
+        const other = whatIsHere(OBJ, x, y);
+        finishQ(false, other ? `Это ${esc(other.n)}. Правильный ответ показан на карте.` : 'Мимо. Правильный ответ показан на карте.');
+        if(other) layer.hl.push({o:other, fill: other.G?'rgba(214,51,108,.18)':null, stroke:'#d6336c', lw:1.5});
+      }
+    };
+  } else {
+    showObject(o, '#e8590c', true, null, false);
+    const typed = trainCfg.answer==='type';
+    let optsHtml = '';
+    if(!typed){ q.opts = shuffle([o, ...distractors(o,3)]); optsHtml = `<div class="opts">${q.opts.map((x,i)=>`<button class="opt" data-i="${i}"><span class="kbd">${i+1}</span> ${esc(x.n)}</button>`).join('')}</div>`; }
+    else optsHtml = `<div class="field"><input id="ans" placeholder="Название объекта" autocomplete="off"></div><button class="btn" id="check">Проверить</button>`;
+    side.innerHTML = trainHeader() + `
+      <div class="q"><div class="lbl">Назовите объект · ${CATS[o.k].toLowerCase()}</div><div class="txt">Что выделено на карте?</div>${o.source?.partial?'<div class="sub">Выделен участок реки.</div>':''}</div>
+      ${optsHtml}<div id="fb"></div>
+      <div class="row"><button class="btn ghost" id="giveup">Не знаю — показать</button><button class="btn hide" id="next">Дальше <span class="kbd">Enter</span></button></div>`;
+    if(!typed) side.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      if(q.done) return; const pick = q.opts[+b.dataset.i], ok = pick===o;
+      b.classList.add(ok?'ok':'bad'); if(!ok) side.querySelector(`.opt[data-i="${q.opts.indexOf(o)}"]`).classList.add('ok');
+      finishQ(ok, ok ? 'Верно!' : `Нет, это <b>${esc(o.n)}</b>.`);
+    });
+    else {
+      const inp = side.querySelector('#ans'); inp.focus();
+      const go = () => { if(q.done) return; const r = checkTyped(o, inp.value);
+        finishQ(r!=='no', r==='ok' ? 'Верно!' : r==='typo' ? `Засчитано, но проверьте написание: <b>${esc(o.n)}</b>` : `Нет, это <b>${esc(o.n)}</b>.`); };
+      side.querySelector('#check').onclick = go; inp.onkeydown = e => { if(e.key==='Enter'){ e.stopPropagation(); go(); } };
+    }
+  }
+  side.querySelector('#giveup').onclick = () => { if(!q.done) finishQ(false, `Это <b>${esc(o.n)}</b>.`); };
+  side.querySelector('#stop').onclick = () => finishTrain(false);
+  side.querySelector('#next').onclick = nextTrain;
+  function finishQ(ok, msg){
+    q.done = true; onAnswer(ok);
+    side.querySelector('#fb').innerHTML = `<div class="fb ${ok?'ok':'bad'}">${msg}</div>`;
+    side.querySelector('#giveup').classList.add('hide'); const nx = side.querySelector('#next'); nx.classList.remove('hide'); nx.focus();
+    if(q.mode==='find'){ showObject(o, ok?'#2f9e44':'#e8590c', !ok, q.click); }
+    else { layer.labels.push({text:o.n, p:o.lab, color: ok?'#2f9e44':'#e8590c'}); draw(); }
+    side.querySelector('.stat') && (side.querySelector('.stat').innerHTML = `<span>Ответов: ${session.n}</span><span>Верно: ${session.ok} (${Math.round(100*session.ok/session.n)}%)</span>`);
+    if(ok && q.mode!=='find') setTimeout(() => { if(session && session.cur===q) nextTrain(); }, 900);
+  }
+}
+document.addEventListener('keydown', e => {
+  if(e.target.tagName==='INPUT') return;
+  const nx = side.querySelector('#next:not(.hide), #tnext:not([disabled])');
+  if(e.key==='Enter' && nx){ e.preventDefault(); nx.click(); return; }
+  if(/^[1-6]$/.test(e.key)){ const b = side.querySelector(`.opt[data-i="${+e.key-1}"]`); if(b) b.click(); }
+});
+
+/* ================= контрольная ================= */
+let test = null;
+function renderTestSetup(){
+  clearLayer(); layer.onClick=null; test=null;
+  const cfg=Object.assign({},DEFAULT,store.get('testCfg.'+activeSubject,{}),{subject:activeSubject,count:10});
+  side.innerHTML=`<h2>Пример контрольной</h2>
+    <div class="settings-description">Самопроверка без личных данных. Разбор — после завершения.</div>
+    <div id="cfg">${cfgPanel(cfg,{count:true})}</div>
+    <div class="settings-footer"><button class="btn" id="start">Начать пример</button><span class="muted">Результат только в открытой вкладке.</span></div>`;
+  side.classList.add("settings-side");
+  const root=side.querySelector('#cfg');
+  const update=()=>viewFor(poolFor(readCfg(root,cfg)));
+  bindChips(root,update);bindAllNone(root,update);viewFor(poolFor(cfg));
+  side.querySelector('#start').onclick=()=>startTest(readCfg(root,cfg));
+}
+function startTest(cfg){
+  const pool=poolFor(cfg);
+  if(!pool.length){alert('Выберите хотя бы один объект.');return;}
+  const chosen=shuffle(pool.slice()).slice(0,Math.min(cfg.count,pool.length));
+  const items=chosen.map((o,i)=>{
+    const mode=cfg.mode==='mix'?(i%2?'name':'find'):cfg.mode;
+    const it={o,mode,ans:null,ok:false};
+    if(mode==='name'&&cfg.answer!=='type')it.opts=shuffle([o,...distractors(o,3,Math.random,cfg.subject||activeSubject)]);
+    return it;
+  });
+  test={cfg,items,i:0,started:new Date()};
+  viewFor(pool);askTest();
+}
+function askTest(){
+  const t = test, it = t.items[t.i], o = it.o; clearLayer();
+  const head = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Пример контрольной</h2></div>
+    <div class="stat"><span>Вопрос ${t.i+1} из ${t.items.length}</span></div><div class="bar"><i style="width:${100*t.i/t.items.length}%;background:var(--accent)"></i></div>`;
+  const nav = `<div class="row" style="margin-top:12px"><button class="btn" id="tnext" ${it.ans==null?'disabled':''}>${t.i===t.items.length-1?'Завершить':'Ответить и дальше'}</button><button class="btn ghost" id="tskip">Пропустить</button></div>`;
+  if(it.mode==='find'){
+    side.innerHTML = head + `<div class="q"><div class="lbl">Покажите на карте · ${CATS[o.k].toLowerCase()}</div><div class="txt">${esc(o.n)}</div><div class="sub">Щёлкните по карте. Отметку можно переставить до перехода к следующему вопросу.</div></div>` + nav;
+    layer.onClick = (x, y) => { it.ans = [x, y]; layer.marks = [{p:[x,y], color:'#1c6e8c'}]; draw(); side.querySelector('#tnext').disabled=false; };
+    fit(homeBox);
+  } else {
+    layer.onClick = null;
+    showObject(o, '#e8590c', true, null, false);
+    const typed = !it.opts;
+    side.innerHTML = head + `<div class="q"><div class="lbl">Назовите объект · ${CATS[o.k].toLowerCase()}</div><div class="txt">Что выделено на карте?</div>${o.source?.partial?'<div class="sub">Выделен участок реки.</div>':''}</div>` +
+      (typed ? `<div class="field"><input id="ans" placeholder="Название объекта" autocomplete="off"></div>`
+             : `<div class="opts">${it.opts.map((x,i)=>`<button class="opt" data-i="${i}"><span class="kbd">${i+1}</span> ${esc(x.n)}</button>`).join('')}</div>`) + nav;
+    if(typed){ const inp = side.querySelector('#ans'); inp.focus();
+      inp.oninput = () => { it.ans = inp.value; side.querySelector('#tnext').disabled = !inp.value.trim(); };
+      inp.onkeydown = e => { if(e.key==='Enter' && inp.value.trim()){ e.stopPropagation(); side.querySelector('#tnext').click(); } }; }
+    else side.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      side.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+      it.ans = +b.dataset.i; side.querySelector('#tnext').disabled=false; });
+  }
+  side.querySelector('#tnext').onclick = () => { grade(it); advance(); };
+  side.querySelector('#tskip').onclick = () => { it.ans = null; it.ok = false; it.skipped = true; advance(); };
+}
+function grade(it){
+  const o = it.o;
+  if(it.mode==='find'){ const v = {...view}; it.ok = hit(o, it.ans[0], it.ans[1]); it.zk = v.k; it.near = (whatIsHere(OBJ, it.ans[0], it.ans[1])||{}).n || null; }
+  else if(it.opts){ it.ok = it.opts[it.ans]===o; it.text = it.opts[it.ans].n; }
+  else { const r = checkTyped(o, it.ans); it.ok = r!=='no'; it.typo = r==='typo'; it.text = it.ans; }
+}
+function advance(){ test.i++; if(test.i < test.items.length) askTest(); else finishTest(); }
+function gradeOf(p){ return p>=90?5 : p>=75?4 : p>=50?3 : 2; }
+function finishTest(){
+  const t = test; t.finished = new Date(); clearLayer(); layer.onClick=null;
+  const ok = t.items.filter(x=>x.ok).length, total = t.items.length, pct = Math.round(100*ok/total);
+  const result={score:ok,total,pct,grade:gradeOf(pct),seconds:Math.round((t.finished-t.started)/1000)};
+  t.result=result;
+  side.innerHTML = `
+    <h2>Пример завершён</h2>
+    <div class="row" style="gap:18px;margin:6px 0 10px"><div class="grade" style="color:${pct>=75?'var(--ok)':pct>=50?'#b7791f':'var(--bad)'}">${result.grade}</div>
+    <div><b>${ok} из ${total}</b> верно (${pct}%)<div class="muted">Время: ${fmtTime(result.seconds)}</div></div></div>
+    <div class="fb info">Это пример для самопроверки. Ниже можно посмотреть ответы на карте.</div>
+    <div class="row"><button class="btn ghost" id="again">Попробовать ещё раз</button></div>
+    <h3>Разбор ответов</h3>
+    <table><tbody>${t.items.map((it,i)=>`<tr class="click" data-i="${i}"><td>${i+1}</td><td>${esc(it.o.n)}<div class="muted">${it.mode==='find'?'найти':'назвать'}${!it.ok && it.text ? ' · ваш ответ: '+esc(it.text) : ''}${!it.ok && it.near ? ' · указано: '+esc(it.near) : ''}${it.skipped?' · пропущен':''}</div></td><td><span class="tag ${it.ok?'ok':'bad'}">${it.ok?'верно':'ошибка'}</span></td></tr>`).join('')}</tbody></table>`;
+  fit(homeBox);
+  side.querySelector('#again').onclick = renderTestSetup;
+  side.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => {
+    const it = t.items[+tr.dataset.i]; clearLayer();
+    if(it.mode==='find' && it.ans) layer.marks.push({p:it.ans, color: it.ok?'#2f9e44':'#d6336c'});
+    showObject(it.o, it.ok?'#2f9e44':'#e8590c', true, it.mode==='find' && it.ans ? it.ans : null);
+  });
+  draw();
+}
+const fmtTime = s => `${Math.floor(s/60)} мин ${s%60} с`;
+function catalogNotes(){
+ return `<details class="sources"><summary>Источники и справка</summary>
+ <p><b>Источники</b></p>
+ <ul>
+ <li>Номенклатура — <a href="http://artlib.osu.ru/web/books/metod_all/203152_20240424.pdf" target="_blank" rel="noopener">методические указания ОГУ, 2024</a>. Дополнительные контуры — <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap (ODbL)</a>, описания рельефа — <a href="https://bigenc.ru/" target="_blank" rel="noopener">БРЭ</a> и <a href="https://orensteppe.org/" target="_blank" rel="noopener">Институт степи</a>.</li>
+ <li>Карта и города — <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>.</li>
+ <li>Названия и расположение объектов — <a href="https://www.gebco.net/data-products/undersea-feature-names" target="_blank" rel="noopener">GEBCO</a>, <a href="https://www.marineregions.org/" target="_blank" rel="noopener">Marine Regions</a>, <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames (CC BY 4.0)</a>. Речная сеть — <a href="https://www.hydrosheds.org/products/hydrorivers" target="_blank" rel="noopener">HydroRIVERS (WWF / McGill University)</a> и Natural Earth. Течения — по учебным картам <a href="https://oceanservice.noaa.gov/facts/gyre.html" target="_blank" rel="noopener">NOAA</a> и <a href="https://mynasadata.larc.nasa.gov/lesson-plans/modeling-salinity-and-deep-ocean-currents" target="_blank" rel="noopener">NASA</a>.</li>
+ <li>Рельеф — <a href="https://www.ncei.noaa.gov/products/etopo-global-relief-model" target="_blank" rel="noopener">ETOPO / NOAA</a>, <a href="https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer" target="_blank" rel="noopener">Esri World Ocean Base</a> и <a href="https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer" target="_blank" rel="noopener">World Hillshade</a>. Контуры котловин — по <a href="https://doi.org/10.1016/j.margeo.2014.01.011" target="_blank" rel="noopener">Harris и др., 2014</a>.</li>
+ </ul>
+ <p><b>Как это работает</b></p>
+ <p>Найдите объект на карте или назовите выделенный. Ответ проверяется по его площади или линии; у небольших объектов есть буферная зона. Часть площадей задана приблизительными учебными контурами; течения показаны схематично, реки — обобщёнными руслами. Главные реки и притоки видны независимо от набора заданий.</p>
+ <p>Прогресс тренировок хранится только в вашем браузере. Пример контрольной показывает результат и разбор без личных данных.</p>
+ </details>`;
+}
+function renderCourses(){
+ document.getElementById('courses').innerHTML=Object.entries(SUBJECTS).map(([k,n])=>`<button class="course ${activeSubject===k?'on':''}" data-subject="${k}" aria-pressed="${activeSubject===k}">${n}<small>${OBJ.filter(o=>inSubject(o,k)).length} объектов</small></button>`).join('');
+}
+document.getElementById('courses').onclick=e=>{
+ const b=e.target.closest('[data-subject]');if(!b||b.dataset.subject===activeSubject)return;
+ if((session||test&&!test.result)&&!confirm('Перейти в другой раздел? Текущая сессия завершится.'))return;
+ activeSubject=b.dataset.subject;store.set('subject',activeSubject);session=null;test=null;clearLayer();
+ trainCfg=Object.assign({},DEFAULT,store.get('trainCfg.'+activeSubject,{}),{subject:activeSubject});
+ document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='train'));
+ renderCourses();resize();renderTrain(false);
+};
+/* ================= вкладки ================= */
+const TABS = {train: () => renderTrain(false), repeat: () => renderTrain(true), test: renderTestSetup};
+document.getElementById('nav').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return;
+  if(test && test.i < test.items.length && !test.result && !confirm('Завершить пример? Текущие ответы будут сброшены.')) return;
+  document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x===b));
+  setTimeout(() => { resize(); TABS[b.dataset.tab](); }, 0);
+};
+renderCourses(); setBasemap(basemap); resize(); renderTrain(false);
+</script>
+</body>
+</html>
