@@ -165,7 +165,7 @@ tr.click:hover td{background:var(--accent-soft)}
     </div>
   </main>
 </div>
-<script src="data.js"></script>
+<script src="data.js?v=14"></script>
 <script src="relief.js"></script>
 <script>
 'use strict';
@@ -290,14 +290,27 @@ function drawCities(){
     const x=sx(c.p[0]),y=sy(c.p[1]);
     if(x<4||y<6||x>W-4||y>H-4) continue;
     const w=ctx.measureText(c.n).width;
-    const b=[x+5,y-13,x+w+9,y+1];
-    if(b[2]>W-3||b[1]<1||occupied.some(a=>b[0]<a[2]&&b[2]>a[0]&&b[1]<a[3]&&b[3]>a[1])) continue;
+    const positions=c.local?[[6,-3],[6,-19],[6,13],[-w-6,-3]]:[[6,-3]];
+    const placement=positions.map(([dx,dy])=>({tx:x+dx,ty:y+dy,b:[x+dx-1,y+dy-10,x+dx+w+3,y+dy+4]})).find(({b})=>b[0]>=3&&b[2]<=W-3&&b[1]>=1&&b[3]<=H-1&&!occupied.some(a=>b[0]<a[2]&&b[2]>a[0]&&b[1]<a[3]&&b[3]>a[1]));
+    if(!placement)continue;
+    const {b,tx,ty}=placement;
     // Reserve the area around highlighted study objects for question markings.
     if(layer.hl.some(h=>{const p=h.o.lab;return Math.hypot(x-sx(p[0]),y-sy(p[1]))<28;})) continue;
     occupied.push([b[0]-5,b[1]-4,b[2]+5,b[3]+4]);
     ctx.beginPath();ctx.arc(x,y,c.capital?2.3:1.7,0,Math.PI*2);ctx.fillStyle='#243c4a';ctx.fill();ctx.strokeStyle='#fffdf8';ctx.lineWidth=1;ctx.stroke();
-    ctx.lineJoin='round';ctx.lineWidth=2.5;ctx.strokeStyle='rgba(255,253,248,.95)';ctx.strokeText(c.n,x+6,y-3);ctx.fillStyle='#243c4a';ctx.fillText(c.n,x+6,y-3);
+    ctx.lineJoin='round';ctx.lineWidth=2.5;ctx.strokeStyle='rgba(255,253,248,.95)';ctx.strokeText(c.n,tx,ty);ctx.fillStyle='#243c4a';ctx.fillText(c.n,tx,ty);
   }
+}
+// Lake water must remain visible above every raster relief layer. Keep the
+// reference layer independent of the active course, filters and question.
+function drawLakes(){
+  ctx.save();ctx.fillStyle='#c4e3f3';ctx.strokeStyle='#4386b1';ctx.lineWidth=.8;
+  const paint=polys=>{ctx.beginPath();pathPolys(polys);ctx.fill('evenodd');ctx.stroke();};
+  // Paint each polygon separately: overlapping lakes must not cancel via evenodd.
+  for(const pg of LAKES)paint([pg]);
+  // The world basemap omits smaller study lakes; use their answer geometry too.
+  for(const o of OBJ)if(o.k==='lakes'&&o.G)paint(o.G);
+  ctx.restore();
 }
 function draw(){
   if(!W) return;
@@ -315,8 +328,8 @@ function draw(){
   } else {
     graticule();
     ctx.beginPath(); pathPolys(LAND); ctx.fillStyle='#f7f2e4'; ctx.fill('evenodd'); ctx.strokeStyle='#9a8f78'; ctx.lineWidth=.7; ctx.stroke();
-    ctx.beginPath(); pathPolys(LAKES); ctx.fillStyle='#d7e9f2'; ctx.fill('evenodd'); ctx.strokeStyle='#7fb0d6'; ctx.lineWidth=.6; ctx.stroke();
   }
+  drawLakes();
   // реки (как на контурной карте)
   ctx.strokeStyle = relief ? '#2f7fc1' : '#5f9fd1'; ctx.lineCap='round';ctx.lineJoin='round';
   for(const major of [false,true]){
