@@ -165,7 +165,7 @@ tr.click:hover td{background:var(--accent-soft)}
     </div>
   </main>
 </div>
-<script src="data.js?v=14"></script>
+<script src="data.js?v=16"></script>
 <script src="relief.js"></script>
 <script>
 'use strict';
@@ -225,6 +225,7 @@ const SUBJECT_BOUNDS=Object.fromEntries(Object.entries(GEO.bounds||{}).map(([k,g
 const cv = document.getElementById('map'), ctx = cv.getContext('2d');
 const view = {k:100, tx:0, ty:0};
 let W=0, H=0, DPR=1;
+let currentsGuide=false;
 const layer = {hl:[], marks:[], labels:[], heat:null, onClick:null, dim:null};
 let homeBox = WORLD;
 
@@ -312,6 +313,34 @@ function drawLakes(){
   for(const o of OBJ)if(o.k==='lakes'&&o.G)paint(o.G);
   ctx.restore();
 }
+function drawCurrentArrows(){
+  if(!currentsGuide)return;
+  ctx.save();ctx.strokeStyle='#276f96';ctx.lineWidth=1.8;ctx.lineCap='round';ctx.lineJoin='round';
+  for(const o of OBJ){
+    if(o.k!=='currents'||!o.L)continue;
+    const seasonal=/Сомалийское|Муссонное/.test(o.n);
+    ctx.setLineDash(seasonal?[6,4]:[]);ctx.beginPath();pathLines(o.L);ctx.stroke();ctx.setLineDash([]);
+    for(const r of o.L){
+      const segs=[];let length=0;
+      for(let i=2;i<r.length;i+=2){
+        const ax=sx(r[i-2]),ay=sy(r[i-1]),bx=sx(r[i]),by=sy(r[i+1]);
+        const len=Math.hypot(bx-ax,by-ay);if(!len)continue;
+        segs.push({ax,ay,bx,by,len,start:length});length+=len;
+      }
+      const count=Math.max(1,Math.floor(length/85));
+      for(let j=0;j<count;j++){
+        const at=length*(j+.5)/count,seg=segs.find(v=>at<=v.start+v.len);if(!seg)continue;
+        const t=(at-seg.start)/seg.len,x=seg.ax+t*(seg.bx-seg.ax),y=seg.ay+t*(seg.by-seg.ay);
+        if(x<0||y<0||x>W||y>H)continue;
+        const angle=Math.atan2(seg.by-seg.ay,seg.bx-seg.ax);
+        for(const reverse of seasonal?[0,Math.PI]:[0]){
+          const a=angle+reverse,px=x+(seasonal?7*Math.cos(a):0),py=y+(seasonal?7*Math.sin(a):0);ctx.beginPath();ctx.moveTo(px-8*Math.cos(a-.48),py-8*Math.sin(a-.48));ctx.lineTo(px,py);ctx.lineTo(px-8*Math.cos(a+.48),py-8*Math.sin(a+.48));ctx.stroke();
+        }
+      }
+    }
+  }
+  ctx.restore();
+}
 function draw(){
   if(!W) return;
   ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -337,6 +366,7 @@ function draw(){
     for(const r of RIVER_NETWORK)if(view.k>=r.minScale && (r.order>=5)===major)pathLines(r.L);
     ctx.lineWidth=major?(relief?1.15:1):.75;ctx.stroke();
   }
+  drawCurrentArrows();
   drawCities();
   if(layer.heat){
     for(const [o, v] of layer.heat){ const c = `rgba(214,51,108,${0.15+0.7*v})`; shapeOf(o, o.L?null:c, o.L?c:null, o.L?2:0); }
@@ -402,7 +432,7 @@ function scheduleDetailedRelief(){
 function drawDetailedRelief(){
   if(!detailRequest())return;
   const frame=detailRelief.frame,fine=detailRelief.fine;
-  if(frame){
+  if(frame&&frame.density>=view.k*.7){
     const [x0,y0,x1,y1]=frame.bb;
     // Ocean bathymetry is drawn only over water. Preserve the familiar
     // elevation colours on land; the high-resolution hillshade adds detail.
@@ -410,7 +440,7 @@ function drawDetailedRelief(){
     pathPolys(LAND);ctx.clip('evenodd');
     ctx.drawImage(frame.img,sx(x0),sy(y0),(x1-x0)*view.k,(y1-y0)*view.k);ctx.restore();
   }
-  if(fine){
+  if(fine&&fine.density>=view.k*.7){
     const [x0,y0,x1,y1]=fine.bb;
     ctx.save();ctx.beginPath();pathPolys(LAND);ctx.clip('evenodd');
     // Replace coarse global shading rather than multiply two terrain textures.
@@ -506,7 +536,7 @@ function distPx(o, x, y){
   }
   return d*view.k;
 }
-const TOL = {pt:16, ln:10, pg:8};
+const TOL = {pt:22, ln:22, pg:18};
 const hit = (o, x, y) => distPx(o, x, y) <= TOL[o.g.t];
 function whatIsHere(pool, x, y){
   let best=null, bestA=Infinity;
@@ -658,7 +688,7 @@ function bindAllNone(root, onChange){
     onChange && onChange();
   });
 }
-function viewFor(pool){ const subject=activeSubject; homeBox = SUBJECT_BOUNDS[subject] || (pool.length ? bboxOf(pool.map(o => new Float64Array(o.bb))) : WORLD); fit(homeBox); }
+function viewFor(pool){ currentsGuide=pool.some(o=>o.k==='currents');const subject=activeSubject; homeBox = SUBJECT_BOUNDS[subject] || (pool.length ? bboxOf(pool.map(o => new Float64Array(o.bb))) : WORLD); fit(homeBox); }
 function showObject(o, color='#e8590c', zoom=true, also=null, revealName=true){
   layer.hl.push({o, fill: o.G ? hexA(color,.32) : (o.P ? color : null), stroke: color, lw: o.L ? 3 : 2});
   if(revealName) layer.labels.push({text:o.n, p:o.lab, color});
@@ -743,7 +773,7 @@ function askQuestion(q, {onAnswer}){
       layer.marks.push({p:[x,y], color: ok?'#2f9e44':'#d6336c'});
       if(ok){ finishQ(true, `Верно!`); }
       else {
-        const other = whatIsHere(OBJ, x, y);
+        const other = whatIsHere(OBJ.filter(v=>v.k===o.k), x, y);
         finishQ(false, other ? `Это ${esc(other.n)}. Правильный ответ показан на карте.` : 'Мимо. Правильный ответ показан на карте.');
         if(other) layer.hl.push({o:other, fill: other.G?'rgba(214,51,108,.18)':null, stroke:'#d6336c', lw:1.5});
       }
@@ -882,10 +912,10 @@ function catalogNotes(){
  <li>Номенклатура — <a href="http://artlib.osu.ru/web/books/metod_all/203152_20240424.pdf" target="_blank" rel="noopener">методические указания ОГУ, 2024</a>. Дополнительные контуры — <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap (ODbL)</a>, описания рельефа — <a href="https://bigenc.ru/" target="_blank" rel="noopener">БРЭ</a> и <a href="https://orensteppe.org/" target="_blank" rel="noopener">Институт степи</a>.</li>
  <li>Карта и города — <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>.</li>
  <li>Названия и расположение объектов — <a href="https://www.gebco.net/data-products/undersea-feature-names" target="_blank" rel="noopener">GEBCO</a>, <a href="https://www.marineregions.org/" target="_blank" rel="noopener">Marine Regions</a>, <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames (CC BY 4.0)</a>. Речная сеть — <a href="https://www.hydrosheds.org/products/hydrorivers" target="_blank" rel="noopener">HydroRIVERS (WWF / McGill University)</a> и Natural Earth. Течения — по учебным картам <a href="https://oceanservice.noaa.gov/facts/gyre.html" target="_blank" rel="noopener">NOAA</a> и <a href="https://mynasadata.larc.nasa.gov/lesson-plans/modeling-salinity-and-deep-ocean-currents" target="_blank" rel="noopener">NASA</a>.</li>
- <li>Рельеф — <a href="https://www.ncei.noaa.gov/products/etopo-global-relief-model" target="_blank" rel="noopener">ETOPO / NOAA</a>, <a href="https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer" target="_blank" rel="noopener">Esri World Ocean Base</a> и <a href="https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer" target="_blank" rel="noopener">World Hillshade</a>. Контуры котловин — по <a href="https://doi.org/10.1016/j.margeo.2014.01.011" target="_blank" rel="noopener">Harris и др., 2014</a>.</li>
+ <li>Рельеф — <a href="https://www.ncei.noaa.gov/products/etopo-global-relief-model" target="_blank" rel="noopener">ETOPO / NOAA</a>, <a href="https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer" target="_blank" rel="noopener">Esri World Ocean Base</a> и <a href="https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer" target="_blank" rel="noopener">World Hillshade</a>. Ледник Ламберта — по <a href="https://data.aad.gov.au/aadc/gaz/display_name.cfm?gaz_id=585" target="_blank" rel="noopener">Australian Antarctic Gazetteer</a> (учебный контур). Контуры котловин — по <a href="https://doi.org/10.1016/j.margeo.2014.01.011" target="_blank" rel="noopener">Harris и др., 2014</a>.</li>
  </ul>
  <p><b>Как это работает</b></p>
- <p>Найдите объект на карте или назовите выделенный. Ответ проверяется по его площади или линии; у небольших объектов есть буферная зона. Часть площадей задана приблизительными учебными контурами; течения показаны схематично, реки — обобщёнными руслами. Главные реки и притоки видны независимо от набора заданий.</p>
+ <p>Найдите объект на карте или назовите выделенный. Ответ проверяется по его площади или линии; у небольших объектов есть буферная зона. Часть площадей задана приблизительными учебными контурами; течения показаны схематично, реки — обобщёнными руслами. Главные реки и притоки видны независимо от набора заданий. При выборе течений их направления показаны стрелками без названий; сезонные направления — двусторонними стрелками. Клик рядом с линией или берегом засчитывается с небольшим допуском.</p>
  <p>Прогресс тренировок хранится только в вашем браузере. Пример контрольной показывает результат и разбор без личных данных.</p>
  </details>`;
 }
